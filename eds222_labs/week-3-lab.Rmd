@@ -87,8 +87,6 @@ summary(water_lat)
 size_mean <- mean(pie_crab$size)
 sst <- sum((pie_crab$size - size_mean) ^2)
 
-
-
 ```
 
 ```{r}
@@ -119,7 +117,7 @@ mpg <- mpg
 
 #mpg$year <- as.factor(mpg$year)mpg %>%
 mpg <- mpg %>%
-  mutate("year_fct" = as.factor(mpg$year))
+  mutate(year_fct = factor(year))
 
 
 ```
@@ -148,7 +146,7 @@ Here is our regression: $$hwy_i=\beta_{0}+\beta_{1} \cdot vintage_i + u$$ Comple
 3.  What does the coefficient estimate on the 2008 vintage indicator variable tell you, in words? **Answers:**
 
 ```{r}
-summary(lm(hwy ~ year_fct, mpg_fct))
+summary(lm(hwy ~ year_fct, mpg))
 ```
 
 4.  Does your model suggest anything about whether fuel efficiency has evolved over time? Why or why not?

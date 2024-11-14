@@ -118,16 +118,11 @@ summary(pcthisp_lm)
 
 1.  Plot the residuals. What pattern do you notice?
 
-XXXXXXX
-REVISIT THIS
-XXXXXXX
-```{r}
-drinking_water_complete <- drop_na(drinking_water, pcthisp, violation)
+XXXXXXX REVISIT THIS XXXXXXX
 
-drinking_water %>%
-  mutate(residual = resid(pcthisp_lm)) %>%
-  ggplot(aes(pcthisp, residual)) 
-  geom_point()
+```{r}
+drinking_water_complete <- drinking_water %>% 
+  drop_na(pcthisp, violation)
 ```
 
 2.  Plot the raw data and the predicted probabilities for `violations`. Are there any obvious problems?
@@ -186,7 +181,7 @@ p <- inv_logit(logit_p)
 loglik <- dbinom(data$violation, size = 1, prob = p, log = TRUE)
 
   # Sum the negative log likelihood
-negloglik <- -sum(loglik)
+negloglik <- -sum(loglik) #convesion to find maximum value, bc loglik is finding the valley, we wan the peak
 }
 
 # Use an optimization function to get the maximum likelihood coefficients
@@ -217,7 +212,6 @@ p <- inv_logit(logit_p)
 p
 
 
-
 # Create and plot predictions
 tibble(pcthisp = 0:100,
        logit_p = beta0_hat + beta1_hat * pcthisp,
@@ -230,30 +224,47 @@ tibble(pcthisp = 0:100,
 3.  How much does the probability of a drinking water violation change when percent Hispanic population increases from 10 to 20%, 45 to 55%, and 80 to 90%?
 
 ```{r}
+logit_p1 <- beta0_hat + beta1_hat * c(10, 45, 80)
+p1 <- inv_logit(logit_p1)
+
+logit_p2 <- beta0_hat + beta1_hat * c(20, 55, 90)
+p2 <- inv_logit(logit_p2)
+
+change <- p2 - p1
 ```
 
 4.  How would you interpret the coefficients? What do the slope and intercept mean in this context? Where is the relationship linear, and where is it non-linear?
-5.  Create a "DEM" of the likelihood landscape for $\beta_0$ and $\beta_1$. Choose a range of $\beta_0$ and $\beta_1$ values around your best estimates, calculate the likelihood for each combination, and create a figure with $\beta_0$ on the x-axis, $\beta_1$ on the y-axis, and the likelihood as the fill. Add a point for $(\hat\beta_0, \hat\beta_1)$.\
+
+    **The coefficients define a linear function *in logit space*.**
+
+    **The intercept is the value of the logit(p) when percent Hispanic is 0.
+    The slope is the change in logit(p) for a 1-percent increase in Hispanic
+    population. p itself is non-linearly related to percent Hispanic
+    population, because the logit function is not linear.**
+
+5.  Create a Digital Elevation Model (DEM) of the likelihood landscape for $\beta_0$ and $\beta_1$. Choose a range of $\beta_0$ and $\beta_1$ values around your best estimates, calculate the likelihood for each combination, and create a figure with $\beta_0$ on the x-axis, $\beta_1$ on the y-axis, and the likelihood as the fill. Add a point for $(\hat\beta_0, \hat\beta_1)$.\
     Bonus problem: add contours!
 
 ```{r}
 likelihood_dem <- expand_grid(
-  ???,
-  ???
+  beta0 = seq(-3,-2, length.out = 20),
+  beta1 = seq(0, 0.01, length.out = 20)
 ) %>% 
   mutate(coefficients = mapply(function(b0, b1) c(beta0 = b0, beta1 = b1),
-                               ???, ???,
+                               beta0, beta1,
                                SIMPLIFY = FALSE),
          negloglik = sapply(coefficients, 
-                            ???, 
-                            data = ???),
-         likelihood = ???)
+                            likelihood_fun, 
+                            data = drinking_water_complete),
+         likelihood = exp(-negloglik))
 
-ggplot(likelihood_dem, aes(???, ???, fill = ???)) +
+ggplot(likelihood_dem, aes(x = beta0, y = beta1, fill = negloglik)) +
   geom_raster() +
-  geom_point(x = ???, y = ???, color = "red")
+  geom_point(x = -2.42, y = 0.0044, color = "red")
 
 ```
+
+**Likelihood applies to all models.**
 
 # Fit the full logistic regression model using `glm()`
 
@@ -262,7 +273,8 @@ Normally we won't need to write our own likelihood functions and use optimizatio
 Here's how to fit the same model from the previous section. Notice the formula and data arguments look very similar to what we'd use for `lm()`. But now we have to specify the response variable's "family" (i.e., the type of random variable) and the link function we want to use (logit, in our case).
 
 ```{r}
-pcthisp_glm <- glm(violations ~ pcthisp, 
+# This code captures everything we did in the previous code chunk
+pcthisp_glm <- glm(violation ~ pcthisp, 
                    family = binomial(link = "logit"),
                    data = drinking_water)
 summary(pcthisp_glm)
@@ -274,7 +286,13 @@ summary(pcthisp_glm)
 1.  How would you fit a model that includes an interaction term between ethnicity and SES?
 
 ```{r}
-interaction_glm <- ???
+# ethnicity = pcthisp
+# SES =  medianincomehouse
+# binomial = bernoulli
+
+interaction_glm <- glm(violation ~ pcthisp + medianincomehouse + pcthisp:medianincomehouse,
+                       family = binomial(link = "logit"),
+                       data = drinking_water_complete)
 summary(interaction_glm)
 
 ```
@@ -283,15 +301,20 @@ summary(interaction_glm)
 
 ```{r}
 predictions <- expand_grid(
-  pcthisp = ???,
-  medianincomehouse = ???
+  pcthisp = 0:100,
+  medianincomehouse = seq(20000, 100000, length.out = 100)
 ) %>% 
-  mutate(violations = predict(???, 
+  mutate(violations = predict(interaction_glm, 
                               newdata = ., 
-                              type = ???))
+                              type = "response"))
 
 # Create plot
-
+ggplot(predictions, aes(pcthisp, medianincomehouse, fill = violations)) +
+  geom_raster() +
+  scale_fill_distiller(palette = "Reds", direction = 1)
 ```
 
 3.  Interpret the predicted surface. How does SES influence the relationship between ethnicity and exposure to environmental hazards? What is the "slope" of the probability of a violation w.r.t. percent Hispanic population at low, medium, and high median household income levels?\
+
+    **At the low end of the SES axis, Pr(violation) increases steeply
+    with percent Hispanic population, but the relationship is flatter at higher income levels. At a low median household income level (\$30k), the “slope” is 0.008. At moderate (\$45k) and high (\$60k) median household income levels, the “slope” is \~0 and -0.008, respectively. Note: there are very few data points in the upper-right corner of the figure, so the negative slope observed for high median household income level may be an extrapolation issue.**

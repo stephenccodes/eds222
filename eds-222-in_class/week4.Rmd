@@ -1,0 +1,39 @@
+---
+title: "Week 4 in-class exercise"
+author: "Stephen Carroll"
+date: "2024-10-22"
+output: html_document
+editor_options: 
+  chunk_output_type: console
+---
+
+### Use palmer penguins to fit a model that has an interaction between a CONTINUOUS and CATEGORICAL variable
+
+```{r}
+library(palmerpenguins)
+library(tidyverse)
+penguins1 <- penguins
+```
+
+```{r}
+# body_mass = B0 + B1flipper + B2sex=male + B3flipperxsexmale
+body_flipper_sex <- summary(lm(body_mass_g ~ flipper_length_mm + sex + flipper_length_mm : sex, penguins1))
+
+ggplot(penguins1, aes(flipper_length_mm, body_mass_g, color = sex)) +
+  geom_point() +
+  geom_abline(intercept = -5443.9607, slope = 47.1527, color = "red") +
+  geom_abline(intercept = -5443.9607, slope = 47.1527 + -0.2942 , color = "blue")
+
+# relationship between the slopes is very similar, maybe this relationship doesn't tell us much
+```
+
+
+# Use palmer penguins to fit a model that has an interaction between two CONTINUOUS variables
+
+
+```{r}
+
+
+
+```
+
